@@ -34,7 +34,7 @@ def preprocess_batch(data, target, I, J, stride, device):
     adaptive_avg_pool = AdaptiveAvgPool2d((I, I))
     data = adaptive_avg_pool(data).to(device)
     gray = data.sum(dim=1, keepdim=True)
-    target = target.squeeze().to(device)
+    target = target.view(-1).to(device)
 
     flat = gray.reshape(gray.shape[0], I * I)
     vectors = F.normalize(flat, p=2, dim=1)
