@@ -160,7 +160,12 @@ class RBS_Gate_density(nn.Module):
         Output:
             - output density matrix from the application of the RBS on the input state
         """
-        return((RBS_unitaries[self.qubit_tuple][0]*torch.cos(self.angle) + RBS_unitaries[self.qubit_tuple][1]*torch.sin(self.angle) + RBS_unitaries[self.qubit_tuple][2]).matmul(input).matmul((RBS_unitaries[self.qubit_tuple][0]*torch.cos(self.angle) + RBS_unitaries[self.qubit_tuple][1]*torch.sin(self.angle) + RBS_unitaries[self.qubit_tuple][2]).t()))
+        unitary = (
+            RBS_unitaries[self.qubit_tuple][0] * torch.cos(self.angle)
+            + RBS_unitaries[self.qubit_tuple][1] * torch.sin(self.angle)
+            + RBS_unitaries[self.qubit_tuple][2]
+        ).to(device=input.device, dtype=input.dtype)
+        return unitary.matmul(input).matmul(unitary.mH)
 
 
 #################################################################################

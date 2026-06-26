@@ -103,7 +103,11 @@ class Pooling_2D_state_vector(nn.Module):
             mixted state with dimension (nbr_batch*k, O**2) with k the number of
             pure states representing the mixed state.
         """
-        input_state = torch.einsum('bi, koi->bko', input_state, self.Projectors.to(torch.float32))
+        input_state = torch.einsum(
+            'bi, koi->bko',
+            input_state,
+            self.Projectors.to(device=input_state.device, dtype=input_state.dtype),
+        )
         # Resize the new state from dimension (nbr_batch, k, O**2) to dimension (nbr_batch*k, O**2):
         input_state = input_state.view(-1, self.O ** 2)
         return (input_state)
@@ -130,10 +134,17 @@ class Pooling_2D_density(nn.Module):
             - a torch vector density operator that represents the output mixted 
             state with dimension (nbr_batch, O**2, O**2).
         """
-        mixed_state_density_matrix = torch.zeros(input.size()[0], self.O ** 2, self.O ** 2).to(self.device)
+        mixed_state_density_matrix = torch.zeros(
+            input.size()[0],
+            self.O ** 2,
+            self.O ** 2,
+            device=input.device,
+            dtype=input.dtype,
+        )
         for i in range(input.size()[0]):
             for p in self.Projectors:
-                mixed_state_density_matrix[i] += p @ input[i] @ p.T
+                projector = p.to(device=input.device, dtype=input.dtype)
+                mixed_state_density_matrix[i] += projector @ input[i] @ projector.mH
         input = mixed_state_density_matrix
         return (input)
 
@@ -160,11 +171,17 @@ class Pooling_3D_density(nn.Module):
             - a torch vector density operator that represents the output mixted
             state with dimension (nbr_batch, O**2, O**2).
         """
-        mixed_state_density_matrix = torch.zeros(input.size()[0], (self.O ** 2) * self.J, (self.O ** 2) * self.J).to(
-            self.device)
+        mixed_state_density_matrix = torch.zeros(
+            input.size()[0],
+            (self.O ** 2) * self.J,
+            (self.O ** 2) * self.J,
+            device=input.device,
+            dtype=input.dtype,
+        )
         for i in range(input.size()[0]):
             for p in self.Projectors:
-                mixed_state_density_matrix[i] += p @ input[i] @ p.T
+                projector = p.to(device=input.device, dtype=input.dtype)
+                mixed_state_density_matrix[i] += projector @ input[i] @ projector.mH
         input = mixed_state_density_matrix
         return (input)
 
@@ -234,10 +251,16 @@ class Pooling_3D_density_channel(nn.Module):
             - a torch vector density operator that represents the output mixted
             state with dimension (nbr_batch, O**2, O**2).
         """
-        mixed_state_density_matrix = torch.zeros(input.size()[0], (self.O ** 2) * self.J, (self.O ** 2) * self.J).to(
-            self.device)
+        mixed_state_density_matrix = torch.zeros(
+            input.size()[0],
+            (self.O ** 2) * self.J,
+            (self.O ** 2) * self.J,
+            device=input.device,
+            dtype=input.dtype,
+        )
         for i in range(input.size()[0]):
             for p in self.Projectors:
-                mixed_state_density_matrix[i] += p @ input[i] @ p.T
+                projector = p.to(device=input.device, dtype=input.dtype)
+                mixed_state_density_matrix[i] += projector @ input[i] @ projector.mH
         input = mixed_state_density_matrix
         return (input)

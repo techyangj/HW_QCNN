@@ -1,0 +1,16 @@
+I: 16
+J: 7
+K: 4
+k: 3
+kernel_layout: all_connection
+train_count: 2000
+test_count: 1000
+batch_size: 10
+epochs: 40
+test_interval: 10
+learning_rate: 0.0066
+gamma: 0.9
+output_scale: 50
+stride: 2
+dataset: CIFAR-10
+readout: truncated_postselected

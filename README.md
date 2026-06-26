@@ -53,6 +53,38 @@ dense_reduce_gates = half_connection_circuit(reduced_qubit) + full_connection_ci
 reduced_qubit) + half_connection_circuit(reduced_qubit) + slide_circuit(reduced_qubit)
 
 
+## CPSR-HW-QCNN extension in this workspace
+
+This checkout also contains an implementation of the CPSR proposal:
+
+* `models/CPSR_HW_QCNN.py` exposes `OfficialHWQCNN3D` and `CPSRHWQCNN`.
+* `scripts/reproduce_official.py` runs the pinned official CIFAR-10 protocol and saves fixed stratified indices by default.
+* `scripts/train_cpsr.py` trains the phase-coupled, shifted-window, tensor-phase reuploading model and supports ablations through `--no-phase`, `--no-shift`, `--no-reupload`, `--blocks-per-stage`, and `--readout full_space`.
+* `tests/` contains physicality and integration tests for the complex backend, phase layer, shift layer, POVM readout, and a small CPSR forward/backward pass.
+
+Example:
+
+```bash
+source .venv/bin/activate
+python scripts/reproduce_official.py --epochs 40 --seed 0
+python scripts/train_cpsr.py --epochs 40 --seed 0
+python scripts/train_cpsr.py --readout full_space --epochs 40 --seed 0
+pytest -q
+```
+
+### Colab CLI smoke run
+
+After pushing the `feature/cpsr-hw-qcnn` branch, a Colab GPU smoke run can be launched from a local terminal with:
+
+```bash
+colab run --keep -s cpsr-smoke --gpu T4 scripts/colab_bootstrap.py -- --epochs 1 --train-count 100 --test-count 50 --batch-size 10 --test-interval 1 --device auto --output-dir runs/colab_smoke
+colab download -s cpsr-smoke /content/hw_qcnn_runs.tar.gz ./hw_qcnn_runs.tar.gz
+colab stop -s cpsr-smoke
+```
+
+If the branch is not yet available on GitHub, archive the current commit and use `scripts/colab_upload_runner.py` in an existing session after uploading the tarball to `/content/HW_QCNN_upload.tar.gz`.
+
+
 ## Tensor dataflow
 ![Dataflow](images/Dataflow.png)
 

@@ -13,4 +13,4 @@ def measurement(batch_density_matrix, device):
     Output:
         - The diagonal vectors of input matrices, corresponding to the sampling probability distribution
     """
-    return torch.stack([torch.diag(density_matrix) for density_matrix in batch_density_matrix]).to(device)
+    return torch.stack([torch.diag(density_matrix).real for density_matrix in batch_density_matrix]).to(device)

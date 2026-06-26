@@ -71,12 +71,12 @@ class RBS_Conv_density(nn.Module):
         Output:
             - output density matrix from the application of the RBS on the input state
         """
-        return ((RBS_unitaries[self.qubit_tuple][0] * torch.cos(self.angle) + RBS_unitaries[self.qubit_tuple][
-            1] * torch.sin(self.angle) + RBS_unitaries[self.qubit_tuple][2]).matmul(input).matmul((RBS_unitaries[
-                                                                                                       self.qubit_tuple][
-                                                                                                       0] * torch.cos(
-            self.angle) + RBS_unitaries[self.qubit_tuple][1] * torch.sin(self.angle) + RBS_unitaries[self.qubit_tuple][
-                                                                                                       2]).t()))
+        unitary = (
+            RBS_unitaries[self.qubit_tuple][0] * torch.cos(self.angle)
+            + RBS_unitaries[self.qubit_tuple][1] * torch.sin(self.angle)
+            + RBS_unitaries[self.qubit_tuple][2]
+        ).to(device=input.device, dtype=input.dtype)
+        return unitary.matmul(input).matmul(unitary.mH)
 
 
 #################################################################################
@@ -189,7 +189,6 @@ class Conv_RBS_state_vector_I2(nn.Module):
             - final state from the application of the RBS from the VQC on the input 
             state
         """
-        input_state = input_state.float()
         input_state = input_state.unsqueeze(-1)
         for RBS in self.RBS_gates:
             input_state = RBS(input_state, self.RBS_Unitaries_dict)

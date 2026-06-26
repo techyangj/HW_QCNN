@@ -101,7 +101,11 @@ class Basis_Change_I_to_HW_state_vector(nn.Module):
             - a torch vector made of several vectors that represents the output mixted
             state in the basis of HW 2. Its dimension is (nbr_batch, binom(2*I,2)).
         """
-        input_state = torch.einsum('bi, oi->bo', input_state, self.Passage_matrix.to(torch.float32))
+        input_state = torch.einsum(
+            'bi, oi->bo',
+            input_state,
+            self.Passage_matrix.to(device=input_state.device, dtype=input_state.dtype),
+        )
         return (input_state)
 
 
@@ -123,8 +127,9 @@ class Basis_Change_I_to_HW_density(nn.Module):
             - a torch density operator that represents the output mixted state in
             the basis of HW 2. Its dimension is (nbr_batch, binom(2*I,2), binom(2*I,2)).
         """
-        input_state = torch.einsum('bii, oi->boi', input_state, self.Passage_matrix.to(torch.float32))
-        input_state = torch.einsum('boi, ai->boa', input_state, self.Passage_matrix.to(torch.float32))
+        passage_matrix = self.Passage_matrix.to(device=input_state.device, dtype=input_state.dtype)
+        input_state = torch.einsum('bii, oi->boi', input_state, passage_matrix)
+        input_state = torch.einsum('boi, ai->boa', input_state, passage_matrix)
 
         return (input_state)
 
@@ -147,7 +152,8 @@ class Basis_Change_I_to_HW_density_3D(nn.Module):
             - a torch density operator that represents the output mixted state in
             the basis of HW 2. Its dimension is (nbr_batch, binom(2*I,2), binom(2*I,2)).
         """
-        return self.Passage_matrix @ input_state @ self.Passage_matrix.T
+        passage_matrix = self.Passage_matrix.to(device=input_state.device, dtype=input_state.dtype)
+        return passage_matrix @ input_state @ passage_matrix.mH
 
 
 #################################################################################
@@ -176,9 +182,12 @@ class RBS_Dense_state_vector(nn.Module):
         Output:
             - output state from the application of the RBS on the input state 
         """
-        return (torch.matmul((RBS_unitaries[self.qubit_tuple][0] * torch.cos(self.angle) +
-                              RBS_unitaries[self.qubit_tuple][1] * torch.sin(self.angle) +
-                              RBS_unitaries[self.qubit_tuple][2]).unsqueeze(0), input.unsqueeze(-1)).squeeze(-1))
+        unitary = (
+            RBS_unitaries[self.qubit_tuple][0] * torch.cos(self.angle)
+            + RBS_unitaries[self.qubit_tuple][1] * torch.sin(self.angle)
+            + RBS_unitaries[self.qubit_tuple][2]
+        ).to(device=input.device, dtype=input.dtype)
+        return torch.matmul(unitary.unsqueeze(0), input.unsqueeze(-1)).squeeze(-1)
 
 
 class RBS_Dense_density(nn.Module):
@@ -204,13 +213,14 @@ class RBS_Dense_density(nn.Module):
         Output:
             - output state from the application of the RBS on the input state 
         """
-        b, I, I = input.size()
-        return torch.matmul(torch.matmul((RBS_unitaries[self.qubit_tuple][0] * torch.cos(self.angle) +
-                                          RBS_unitaries[self.qubit_tuple][1] * torch.sin(self.angle) +
-                                          RBS_unitaries[self.qubit_tuple][2]).unsqueeze(0).expand(b, I, I), input), (
-                                    RBS_unitaries[self.qubit_tuple][0] * torch.cos(self.angle) +
-                                    RBS_unitaries[self.qubit_tuple][1] * torch.sin(self.angle) +
-                                    RBS_unitaries[self.qubit_tuple][2]).conj().T.unsqueeze(0).expand(b, I, I))
+        b, dim, _ = input.size()
+        unitary = (
+            RBS_unitaries[self.qubit_tuple][0] * torch.cos(self.angle)
+            + RBS_unitaries[self.qubit_tuple][1] * torch.sin(self.angle)
+            + RBS_unitaries[self.qubit_tuple][2]
+        ).to(device=input.device, dtype=input.dtype)
+        unitary_batch = unitary.unsqueeze(0).expand(b, dim, dim)
+        return torch.matmul(torch.matmul(unitary_batch, input), unitary.mH.unsqueeze(0).expand(b, dim, dim))
         # return((RBS_unitaries[self.qubit_tuple][0]*torch.cos(self.angle) + RBS_unitaries[self.qubit_tuple][1]*torch.sin(self.angle) + RBS_unitaries[self.qubit_tuple][2]).matmul(input).matmul((RBS_unitaries[self.qubit_tuple][0]*torch.cos(self.angle) + RBS_unitaries[self.qubit_tuple][1]*torch.sin(self.angle) + RBS_unitaries[self.qubit_tuple][2]).t()))
 
 
@@ -269,7 +279,6 @@ class Dense_RBS_state_vector_3D(nn.Module):
             - final density operator from the application of the RBS from the VQC on
             the input density operator. Its dimension is (nbr_batch, binom(2*I,2), binom(2*I,2)).
         """
-        input_state = input_state.float()
         for RBS in self.RBS_gates:
             input_state = RBS(input_state, self.RBS_Unitaries_dict)
         return (input_state)
@@ -298,7 +307,6 @@ class Dense_RBS_density(nn.Module):
             - final density operator from the application of the RBS from the VQC on
             the input density operator. Its dimension is (nbr_batch, binom(2*I,2), binom(2*I,2)).
         """
-        input_state = input_state.float()
         for RBS in self.RBS_gates:
             input_state = RBS(input_state, self.RBS_Unitaries_dict)
         return (input_state)
@@ -327,7 +335,6 @@ class Dense_RBS_density_3D(nn.Module):
             - final density operator from the application of the RBS from the VQC on
             the input density operator. Its dimension is (nbr_batch, binom(2*I,2), binom(2*I,2)).
         """
-        input_state = input_state.float()
         for RBS in self.RBS_gates:
             input_state = RBS(input_state, self.RBS_Unitaries_dict)
         return (input_state)
