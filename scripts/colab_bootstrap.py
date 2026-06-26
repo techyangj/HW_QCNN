@@ -27,8 +27,9 @@ def parse_args():
     parser.add_argument("--train-script", default="scripts/train_cpsr.py")
     parser.add_argument("--archive", type=Path, default=Path("/content/hw_qcnn_runs.tar.gz"))
     parser.add_argument("--skip-install", action="store_true")
-    parser.add_argument("train_args", nargs=argparse.REMAINDER)
-    return parser.parse_args()
+    args, train_args = parser.parse_known_args()
+    args.train_args = train_args
+    return args
 
 
 def sync_repo(args):
