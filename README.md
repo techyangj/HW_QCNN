@@ -74,7 +74,7 @@ pytest -q
 
 ### Colab CLI smoke run
 
-After pushing the `feature/cpsr-hw-qcnn` branch, a Colab GPU smoke run can be launched from a local terminal with:
+After pushing the `feature/cpsr-hw-qcnn` branch to the `techyangj/HW_QCNN` fork, a Colab GPU smoke run can be launched from a local terminal with:
 
 ```bash
 colab run --keep -s cpsr-smoke --gpu T4 scripts/colab_bootstrap.py -- --epochs 1 --train-count 100 --test-count 50 --batch-size 10 --test-interval 1 --device auto --output-dir runs/colab_smoke

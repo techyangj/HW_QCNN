@@ -7,7 +7,7 @@ import tarfile
 from pathlib import Path
 
 
-DEFAULT_REPO_URL = "https://github.com/ptitbroussou/HW_QCNN.git"
+DEFAULT_REPO_URL = "https://github.com/techyangj/HW_QCNN.git"
 DEFAULT_BRANCH = "feature/cpsr-hw-qcnn"
 
 
@@ -100,4 +100,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
