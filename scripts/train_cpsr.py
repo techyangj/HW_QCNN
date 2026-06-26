@@ -94,6 +94,8 @@ def parse_args():
     parser.add_argument("--no-shift", action="store_true")
     parser.add_argument("--no-reupload", action="store_true")
     parser.add_argument("--readout", choices=["truncated", "full_space"], default="truncated")
+    parser.add_argument("--conv-backend", choices=["dense", "indexed"], default="dense")
+    parser.add_argument("--checkpoint-blocks", action="store_true")
     parser.add_argument("--train-count", type=int, default=2000)
     parser.add_argument("--test-count", type=int, default=1000)
     parser.add_argument("--batch-size", type=int, default=10)
@@ -138,6 +140,8 @@ def main():
         use_reupload=not args.no_reupload,
         readout=args.readout,
         blocks_per_stage=args.blocks_per_stage,
+        conv_backend=args.conv_backend,
+        checkpoint_blocks=args.checkpoint_blocks,
     ).to(device)
     print(f"Start training! Number of network total parameters: {sum(p.numel() for p in model.parameters())}")
 

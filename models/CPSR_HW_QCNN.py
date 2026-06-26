@@ -4,6 +4,7 @@ import sys
 
 import torch
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -108,6 +109,8 @@ class CPSRHWQCNN(nn.Module):
         use_reupload=True,
         readout="truncated",
         blocks_per_stage=2,
+        conv_backend="dense",
+        checkpoint_blocks=False,
     ):
         super().__init__()
         if I % 4 != 0:
@@ -116,6 +119,8 @@ class CPSRHWQCNN(nn.Module):
             raise ValueError("blocks_per_stage must be 1 or 2")
         if readout not in {"truncated", "full_space"}:
             raise ValueError("readout must be 'truncated' or 'full_space'")
+        if conv_backend not in {"dense", "indexed"}:
+            raise ValueError("conv_backend must be 'dense' or 'indexed'")
 
         self.I = I
         self.J = J
@@ -126,6 +131,9 @@ class CPSRHWQCNN(nn.Module):
         self.use_shift = use_shift
         self.readout = readout
         self.blocks_per_stage = blocks_per_stage
+        self.conv_backend = conv_backend
+        self.checkpoint_blocks = checkpoint_blocks
+        conv_cls = self._resolve_conv_cls(conv_backend)
 
         O = I // 2
         final_I = I // 4
@@ -134,11 +142,11 @@ class CPSRHWQCNN(nn.Module):
         self.reupload1 = TensorPhaseReuploadDensity3D(I, J, device=device) if use_reupload else None
         self.reupload2 = TensorPhaseReuploadDensity3D(O, J, device=device) if use_reupload else None
 
-        self.stage1_block1 = self._make_block(I, K, J, kernel_layout, device, phase_mode, phase_rank, use_phase)
-        self.stage2_block1 = self._make_block(O, K, J, kernel_layout, device, phase_mode, phase_rank, use_phase)
+        self.stage1_block1 = self._make_block(I, K, J, kernel_layout, device, phase_mode, phase_rank, use_phase, conv_cls)
+        self.stage2_block1 = self._make_block(O, K, J, kernel_layout, device, phase_mode, phase_rank, use_phase, conv_cls)
         if blocks_per_stage == 2:
-            stage1_block2 = self._make_block(I, K, J, kernel_layout, device, phase_mode, phase_rank, use_phase)
-            stage2_block2 = self._make_block(O, K, J, kernel_layout, device, phase_mode, phase_rank, use_phase)
+            stage1_block2 = self._make_block(I, K, J, kernel_layout, device, phase_mode, phase_rank, use_phase, conv_cls)
+            stage2_block2 = self._make_block(O, K, J, kernel_layout, device, phase_mode, phase_rank, use_phase, conv_cls)
             shift = K // 2
             self.stage1_block2 = (
                 ShiftedBlock3D(stage1_block2, I, J, shift, shift, device) if use_shift else stage1_block2
@@ -165,7 +173,14 @@ class CPSRHWQCNN(nn.Module):
             self.reduce_dim = Trace_out_dimension(class_count, device)
             self.dense_reduced = Dense_RBS_density_3D(0, reduced_qubit, k, dense_reduce_gates, device)
 
-    def _make_block(self, I, K, J, kernel_layout, device, phase_mode, phase_rank, use_phase):
+    def _resolve_conv_cls(self, conv_backend):
+        if conv_backend == "dense":
+            return Conv_RBS_density_I2_3D
+        from src.QCNN_layers.IndexedConv_layer import IndexedConv_RBS_density_I2_3D
+
+        return IndexedConv_RBS_density_I2_3D
+
+    def _make_block(self, I, K, J, kernel_layout, device, phase_mode, phase_rank, use_phase, conv_cls):
         if use_phase:
             return PhaseCoupledConvBlock3D(
                 I,
@@ -175,15 +190,21 @@ class CPSRHWQCNN(nn.Module):
                 device,
                 rank=phase_rank,
                 mode=phase_mode,
+                conv_cls=conv_cls,
             )
-        return Conv_RBS_density_I2_3D(I, K, J, kernel_layout, device)
+        return conv_cls(I, K, J, kernel_layout, device)
+
+    def _apply_block(self, block, x):
+        if self.checkpoint_blocks and self.training and torch.is_grad_enabled():
+            return checkpoint(block, x, use_reentrant=False)
+        return block(x)
 
     def _run_stage(self, x, reupload, phase_map, block1, block2, pool):
         if self.use_reupload:
             x = reupload(x, phase_map)
-        x = block1(x)
+        x = self._apply_block(block1, x)
         if block2 is not None:
-            x = block2(x)
+            x = self._apply_block(block2, x)
         return pool(x)
 
     def forward(self, x, phase_maps=None):
